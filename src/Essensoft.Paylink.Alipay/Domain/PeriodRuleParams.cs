@@ -37,10 +37,10 @@ namespace Essensoft.Paylink.Alipay.Domain
         [JsonPropertyName("total_amount")]
         public string TotalAmount { get; set; }
 
-        /// <summary>
-        /// 总扣款次数。如果传入此参数，则商户成功扣款的次数不能超过此次数限制（扣款失败不计入）。
-        /// </summary>
-        [JsonPropertyName("total_payments")]
-        public long TotalPayments { get; set; }
+        ///// <summary>
+        ///// 总扣款次数。如果传入此参数，则商户成功扣款的次数不能超过此次数限制（扣款失败不计入）。
+        ///// </summary>
+        //[JsonPropertyName("total_payments")]
+        //public long TotalPayments { get; set; }
     }
 }
