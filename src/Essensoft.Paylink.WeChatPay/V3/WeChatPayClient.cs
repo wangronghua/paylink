@@ -139,6 +139,56 @@ namespace Essensoft.Paylink.WeChatPay.V3
 
         #region IWeChatPayClient Members
 
+        public async Task<T> ExecuteAsync<T>(IWeChatPayPrivacyGetRequest<T> request, WeChatPayOptions options) where T : WeChatPayResponse
+        {
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+
+            if (string.IsNullOrEmpty(options.MchId))
+            {
+                throw new WeChatPayException($"options.{nameof(WeChatPayOptions.MchId)} is Empty!");
+            }
+
+            if (string.IsNullOrEmpty(options.Certificate))
+            {
+                throw new WeChatPayException($"options.{nameof(WeChatPayOptions.Certificate)} is Empty!");
+            }
+
+            if (string.IsNullOrEmpty(options.APIv3Key))
+            {
+                throw new WeChatPayException($"options.{nameof(WeChatPayOptions.APIv3Key)} is Empty!");
+            }
+
+            var cert = await _platformCertificateManager.GetCertificateAsync(this, options);
+
+            // 加密敏感信息
+            EncryptPrivacyProperty(request.GetQueryModel(), cert.Certificate.GetRSAPublicKey());
+
+            var client = _httpClientFactory.CreateClient(Name);
+            var (headers, body, statusCode) = await client.GetAsync(request, options, cert.SerialNo);
+            var parser = new WeChatPayResponseJsonParser<T>();
+            var response = parser.Parse(body, statusCode);
+
+            if (request.GetNeedCheckSign())
+            {
+                if (!response.IsError)
+                {
+                    await CheckResponseSignAsync(headers, body, options);
+                }
+            }
+
+            // 解密敏感信息
+            DecryptPrivacyProperty(response, options.RSAPrivateKey);
+
+            return response;
+        }
+
+        #endregion
+
+        #region IWeChatPayClient Members
+
         public async Task<T> ExecuteAsync<T>(IWeChatPayPrivacyPostRequest<T> request, WeChatPayOptions options) where T : WeChatPayResponse
         {
             if (options == null)
@@ -171,7 +221,8 @@ namespace Essensoft.Paylink.WeChatPay.V3
                 await CheckResponseSignAsync(headers, body, options);
             }
 
-            DecryptPrivacyProperty(response, options.APIPrivateKey);
+            // 解密敏感信息
+            DecryptPrivacyProperty(response, options.RSAPrivateKey);
 
             return response;
         }
@@ -273,7 +324,7 @@ namespace Essensoft.Paylink.WeChatPay.V3
         /// <remarks>
         /// <para><a href="https://pay.weixin.qq.com/wiki/doc/apiv3/wechatpay/wechatpay4_3.shtml">敏感信息加解密</a></para>
         /// </remarks>
-        private static void DecryptPrivacyProperty(WeChatPayObject obj, string privateKey)
+        private static void DecryptPrivacyProperty(WeChatPayObject obj, RSA rsa)
         {
             foreach (var propertyInfo in obj.GetType().GetProperties())
             {
@@ -293,7 +344,7 @@ namespace Essensoft.Paylink.WeChatPay.V3
                     }
 
                     // 解密并将明文设置回对象
-                    var ciphertext = OaepSHA1WithRSA.Decrypt(strValue, privateKey);
+                    var ciphertext = OaepSHA1WithRSA.Decrypt(rsa, strValue);
                     propertyInfo.SetValue(obj, ciphertext);
                 }
                 else if (propertyInfo.PropertyType.IsClass) // 解密子对象
@@ -304,7 +355,7 @@ namespace Essensoft.Paylink.WeChatPay.V3
                         {
                             foreach (var item in array)
                             {
-                                DecryptPrivacyProperty(item, privateKey);
+                                DecryptPrivacyProperty(item, rsa);
                             }
                         }
                     }
@@ -314,7 +365,7 @@ namespace Essensoft.Paylink.WeChatPay.V3
                         {
                             foreach (var item in enumerable)
                             {
-                                DecryptPrivacyProperty(item, privateKey);
+                                DecryptPrivacyProperty(item, rsa);
                             }
                         }
                     }
@@ -322,7 +373,7 @@ namespace Essensoft.Paylink.WeChatPay.V3
                     {
                         if (propertyInfo.GetValue(obj) is WeChatPayObject wcpObj)
                         {
-                            DecryptPrivacyProperty(wcpObj, privateKey);
+                            DecryptPrivacyProperty(wcpObj, rsa);
                         }
                     }
                 }
