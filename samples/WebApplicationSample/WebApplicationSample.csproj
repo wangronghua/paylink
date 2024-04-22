@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net7.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <UserSecretsId>a59ca38e-9b52-44fe-b3d2-8cb5a1641623</UserSecretsId>
     <SignAssembly>false</SignAssembly>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
@@ -15,6 +15,10 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Essensoft.Paylink.Alipay\Essensoft.Paylink.Alipay.csproj" />
     <ProjectReference Include="..\..\src\Essensoft.Paylink.WeChatPay\Essensoft.Paylink.WeChatPay.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="Microsoft.SourceLink.GitHub" Version="8.0.0" />
   </ItemGroup>
 
 </Project>
